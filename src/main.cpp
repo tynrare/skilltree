@@ -123,7 +123,7 @@ int main() {
 
   // Initialization
   //--------------------------------------------------------------------------------------
-  InitWindow(screenWidth, screenHeight, "raylib [core] example - basic window");
+  InitWindow(screenWidth, screenHeight, "tynroar skilltree");
 
   init();
 
