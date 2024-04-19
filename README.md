@@ -1,6 +1,6 @@
-# shaders-terrain
+# Skilltree
 
-testin' shader features here
+testin' skill trees
 
 [web demo](https://tynroar-skilltree.netlify.app/)
 
