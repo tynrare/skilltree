@@ -2,7 +2,7 @@
 
 testin' shader features here
 
-[web demo](https://tynroar-shaders-terrain.netlify.app/)
+[web demo](https://tynroar-skilltree.netlify.app/)
 
 # build
 
