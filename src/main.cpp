@@ -16,13 +16,16 @@
 // #include <ostream>
 #include "skillicon.hpp"
 #include "skilltree.hpp"
+#include "dukscript.hpp"
 
 using namespace tynskills;
 
 Skilltree *skilltree;
+Dukscript *dukscript;
 std::map<nodeid, Skillicon> skillicons;
 long config_file_timestamp = 0;
 const char *config_filename = RES_PATH "skills.ini";
+int points_spent = 0;
 
 void UpdateDrawFrame(void);
 void parse_config(Skilltree *skilltree);
@@ -32,6 +35,10 @@ int screenHeight = 450;
 
 void init() {
   skilltree = new Skilltree();
+	dukscript = new Dukscript();
+
+	dukscript->eval("print('Dukscript initialized');");
+	//dukscript->eval("var a = 1");
 
   parse_config(skilltree);
 	return;
@@ -42,6 +49,7 @@ Vector2 pad = {16.0, 16.0};
 void draw() {
   Vector2 mouse = GetMousePosition();
   bool clicked = IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
+  bool clicked_second = IsMouseButtonPressed(MOUSE_BUTTON_RIGHT);
 
   // draw edges in first pass
   for (auto &[id, icon] : skillicons) {
@@ -76,24 +84,16 @@ void draw() {
     bool collision = CheckCollisionPointRec(mouse, rect) && leaf->is_active();
     btn_pressed = btn_pressed || collision;
     if (collision && clicked) {
-      leaf->upgrade();
-
-      for (const auto &eid : node->edges) {
-        const Edge *edge = skilltree->get_edge(eid);
-        if (edge->nodea() != id) {
-          continue;
-        }
-
-        Leaf *leafb = skilltree->get_leaf(edge->nodeb());
-        const Branch *branch = skilltree->get_branch(eid);
-        bool active = branch->is_active(leaf);
-
-        // activate branched skills
-        if (active) {
-          skilltree->activate_leaf(leafb->get_id());
-        }
-      }
-    }
+			// upgrade leaf
+      const int delta = leaf->upgrade();
+			points_spent += delta;
+			skilltree->refresh_leaf(id);
+    } else if (collision && clicked_second) {
+			// downgrade leaf
+      const int delta = leaf->downgrade();
+			points_spent += delta;
+			points_spent += skilltree->refresh_leaf(id);
+		}
     // draw icon
     icon.draw(leaf, rect, collision);
   }
@@ -102,6 +102,10 @@ void draw() {
     Vector2 delta = GetMouseDelta();
     pad = Vector2Add(delta, pad);
   }
+
+	const int fontsize = 20;
+	DrawText(TextFormat("%d spent", points_spent), 
+			8, screenHeight - fontsize - 8, fontsize, BLACK);
 }
 
 void dispose() {
