@@ -158,6 +158,11 @@ void UpdateDrawFrame(void) {
 #include <string>
 #include "external/INIReader.h"
 
+/**
+ * ini entries sorted by name. All names has to be ordered carefully
+ *
+ * @param skilltree
+ */
 void parse_config(Skilltree *skilltree) {
   INIReader reader(config_filename);
 
