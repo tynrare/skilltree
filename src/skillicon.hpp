@@ -52,12 +52,15 @@ public:
     DrawTexturePro(this->texture, source, dest, Vector2Zero(), 0.0, color);
     DrawRectangleLinesEx(dest, 2.0, outline_color);
 
+		const int fontsize = 20;
     if (leaf->is_active()) {
       DrawText(TextFormat("%d/%d", leaf->get_points(), leaf->get_maxpoints()),
-               dest.x + 8, dest.y + 8, 16, WHITE);
+               dest.x + 8, dest.y + 8, fontsize, WHITE);
     } else {
-      DrawText("---", dest.x + 8, dest.y + 8, 16, WHITE);
+      DrawText("---", dest.x + 8, dest.y + 8, fontsize, WHITE);
     }
+
+		DrawText(leaf->get_name().c_str(), dest.x + 8, dest.y + dest.width - 8 - fontsize, fontsize, WHITE);
   }
 };
 } // namespace tynskills

@@ -51,6 +51,7 @@ public:
   bool is_active() const { return this->info.active; }
   int get_points() const { return this->info.points; }
   int get_maxpoints() const { return this->info.maxpoints; }
+	const std::string &get_name() const { return this->info.name; }
 
   void setup(int points, int maxpoints, bool active, BranchProgressMode mode = BranchProgressMode::ANY) {
     this->info.points = points;
@@ -95,6 +96,8 @@ public:
 		this->id = b.id; 
 		this->mode = b.mode;
 	}
+
+	BranchProgressMode get_mode() const { return this->mode; }
 
 	bool is_active(const Leaf *leaf) const {
 		if (!leaf->is_active()) {
@@ -188,6 +191,21 @@ public:
 
 		if (active) {
 			leaf->activate();
+		}
+
+		// activate all following leafs
+		if (leaf->is_active()) {
+			for (const auto &eid : node->edges) {
+				const Edge *edge = this->get_edge(eid);
+				if (edge->nodea() != id) {
+					continue;
+				}
+				const Branch *branch = this->get_branch(eid);
+
+				if (branch->get_mode() == BranchProgressMode::ANY) {
+					this->activate_leaf(edge->nodeb());
+				}
+			}
 		}
 
 		return leaf->is_active();
