@@ -83,6 +83,12 @@ public:
 		this->nodes = {};
 	}
 
+	void cleanup() {
+		this->edges.clear();
+		this->routes.clear();
+		this->nodes.clear();
+	}
+
   /**
    * @returns new node id
    */

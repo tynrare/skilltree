@@ -33,8 +33,9 @@ if (${IS_DEBUG_BUILD})
 endif ()
 
 set( CMAKE_EXPORT_COMPILE_COMMANDS ON )
-file(GLOB_RECURSE sources CONFIGURE_DEPENDS "src/*.cpp")
-add_executable(${PROJECT_NAME} ${sources})
+file(GLOB_RECURSE cpp_sources CONFIGURE_DEPENDS "src/*.cpp")
+file(GLOB_RECURSE c_sources CONFIGURE_DEPENDS "src/*.c")
+add_executable(${PROJECT_NAME} ${cpp_sources} ${c_sources})
 #set(raylib_VERBOSE 1)
 target_link_libraries(${PROJECT_NAME} raylib m)
 

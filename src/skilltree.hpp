@@ -1,6 +1,7 @@
 #pragma once
 #include "graph.hpp"
 #include <raylib.h>
+#include <string>
 
 using namespace tyngraph;
 
@@ -18,21 +19,26 @@ enum class BranchProgressMode {
 	MAXIMUM 
 };
 
+struct Skillinfo {
+	int points;
+	int maxpoints;
+	bool active;
+	BranchProgressMode mode;
+	std::string name;
+};
+
 class Leaf {
   nodeid id;
-  int points;
-  int maxpoints;
-  bool active;
-	BranchProgressMode mode;
+	Skillinfo info;
 
 public:
   Leaf(nodeid id) { 
 		this->id = id; 
-		this->setup(0, 0, false);
+		Leaf();
 	}
   Leaf() { 
 		this->id = -1; 
-		this->mode = BranchProgressMode::ANY;
+		this->info = {};
 		this->setup(0, 0, false);
 	}
   Leaf(const Leaf &l) {
@@ -41,33 +47,32 @@ public:
   }
 
   int get_id() { return this->id; }
-
-	BranchProgressMode get_mode() const { return this->mode; }
-
-  bool is_active() const { return this->active; }
-
-  int get_points() const { return this->points; }
-
-  int get_maxpoints() const { return this->maxpoints; }
+	BranchProgressMode get_mode() const { return this->info.mode; }
+  bool is_active() const { return this->info.active; }
+  int get_points() const { return this->info.points; }
+  int get_maxpoints() const { return this->info.maxpoints; }
 
   void setup(int points, int maxpoints, bool active, BranchProgressMode mode = BranchProgressMode::ANY) {
-    this->points = points;
-    this->maxpoints = maxpoints;
-    this->active = active;
-		this->mode = mode;
+    this->info.points = points;
+    this->info.maxpoints = maxpoints;
+    this->info.active = active;
+		this->info.mode = mode;
   }
-  void setup(const Leaf &l) { this->setup(l.points, l.maxpoints, l.active, l.mode); }
+  void setup(const Leaf &l) { this->info = l.info; }
+	void setup(const Skillinfo &info) {
+		this->info = info;
+	}
 
-  void activate() { this->active = true; }
+  void activate() { this->info.active = true; }
 
   void upgrade() {
-    if (!this->active) {
+    if (!this->info.active) {
       return;
     }
 
-    this->points += 1;
-    if (this->points >= this->maxpoints) {
-      this->points = this->maxpoints;
+    this->info.points += 1;
+    if (this->info.points >= this->info.maxpoints) {
+      this->info.points = this->info.maxpoints;
     }
   }
 };
@@ -115,7 +120,13 @@ class Skilltree {
   std::map<edgeid, Branch> branches;
 
 public:
-  nodeid add_leaf(BranchProgressMode mode = BranchProgressMode::ANY) {
+	void cleanup() {
+		this->leafs.clear();
+		this->branches.clear();
+		this->graph.cleanup();
+	}
+
+  nodeid add_leaf() {
     const nodeid id = this->graph.add_node();
     this->leafs[id] = Leaf(id);
 

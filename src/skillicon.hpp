@@ -31,6 +31,10 @@ public:
     return {origin.x + this->pos.x, origin.y + this->pos.y, 128.0, 128.0};
   }
 
+	Vector2 get_pos() const {
+		return this->pos;
+	}
+
 	Vector2 get_center(Vector2 origin) const {
 		const Rectangle rect = this->get_rect(origin);
 		const Vector2 v = { rect.x + rect.width / 2 ,

@@ -1,5 +1,6 @@
 #include "raylib.h"
 #include <map>
+#include <raymath.h>
 
 #if defined(PLATFORM_WEB)
 #include <emscripten/emscripten.h>
@@ -16,105 +17,97 @@
 #include "skillicon.hpp"
 #include "skilltree.hpp"
 
-void UpdateDrawFrame(void);
-
 using namespace tynskills;
+
+Skilltree *skilltree;
+std::map<nodeid, Skillicon> skillicons;
+long config_file_timestamp = 0;
+const char *config_filename = RES_PATH "skills.ini";
+
+void UpdateDrawFrame(void);
+void parse_config(Skilltree *skilltree);
 
 int screenWidth = 800;
 int screenHeight = 450;
 
-Skilltree *skilltree;
-std::map<nodeid, Skillicon> skillicons;
-
-Leaf *make_skill(const char *name, Vector2 pos) {
-  nodeid leafid = skilltree->add_leaf();
-  Texture texture = LoadTexture(TextFormat(RES_PATH "icons/%s.png", name));
-	skillicons[leafid] = Skillicon(texture, pos, leafid);
-
-  return skilltree->get_leaf(leafid);
-}
-
 void init() {
   skilltree = new Skilltree();
 
-  Leaf *skill1 = make_skill("SGI_01", (Vector2){0.0, 0.0});
-  Leaf *skill2 = make_skill("SGI_02", (Vector2){(128.0 + 16.0) * 1, 0.0});
-  Leaf *skill3 = make_skill("SGI_03", (Vector2){(128.0 + 16.0) * 2, 0.0});
-  Leaf *skill4 = make_skill("SGI_04", (Vector2){(128.0 + 16.0) * 2, (128.0 + 16.0) * 1});
-  Leaf *skill5 = make_skill("SGI_05", (Vector2){(128.0 + 16.0) * 1, (128.0 + 16.0) * 1});
-  Leaf *skill6 = make_skill("SGI_06", (Vector2){(128.0 + 16.0) * 1, (128.0 + 16.0) * 2});
-  Leaf *skill7 = make_skill("SGI_07", (Vector2){(128.0 + 16.0) * 3, (128.0 + 16.0) * 2});
-  Leaf *skill8 = make_skill("SGI_08", (Vector2){(128.0 + 16.0) * 3, (128.0 + 16.0) * 0});
-  Leaf *skill9 = make_skill("SGI_09", (Vector2){(128.0 + 16.0) * 4, (128.0 + 16.0) * 1});
-	skill1->setup(0, 5, true);
-	skill2->setup(0, 5, true);
-	skill3->setup(0, 5, false);
-	skill4->setup(0, 5, false);
-	skill5->setup(0, 5, false);
-	skill6->setup(0, 5, false, BranchProgressMode::MAXIMUM);
-	skill7->setup(0, 5, false);
-	skill8->setup(0, 5, false);
-	skill9->setup(0, 5, false, BranchProgressMode::MAXIMUM);
-
-  skilltree->add_branch(skill2->get_id(), skill3->get_id(), BranchProgressMode::MINIMUM);
-  skilltree->add_branch(skill3->get_id(), skill4->get_id());
-  skilltree->add_branch(skill2->get_id(), skill5->get_id());
-  skilltree->add_branch(skill5->get_id(), skill6->get_id());
-  skilltree->add_branch(skill4->get_id(), skill7->get_id());
-  skilltree->add_branch(skill4->get_id(), skill6->get_id());
-  skilltree->add_branch(skill3->get_id(), skill8->get_id(), BranchProgressMode::ANY);
-
-  skilltree->add_branch(skill7->get_id(), skill9->get_id());
-  skilltree->add_branch(skill8->get_id(), skill9->get_id(), BranchProgressMode::MINIMUM);
+  parse_config(skilltree);
+	return;
 }
+
+Vector2 pad = {16.0, 16.0};
 
 void draw() {
   Vector2 mouse = GetMousePosition();
   bool clicked = IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
 
-  Vector2 pad = {16.0, 16.0};
+  // draw edges in first pass
   for (auto &[id, icon] : skillicons) {
-		Leaf *leaf = skilltree->get_leaf(id);
-		Node *node = skilltree->get_node(id);
-    const Rectangle rect = icon.get_rect(pad);
-		const Vector2 center = icon.get_center(pad);
+    Leaf *leaf = skilltree->get_leaf(id);
+    Node *node = skilltree->get_node(id);
+    const Vector2 center = icon.get_center(pad);
 
-		// user interact
-    bool collision = CheckCollisionPointRec(mouse, rect);
+    for (const auto &eid : node->edges) {
+      const Edge *edge = skilltree->get_edge(eid);
+      if (edge->nodea() != id) {
+        continue;
+      }
+
+      const Branch *branch = skilltree->get_branch(eid);
+      Skillicon *iconb = &skillicons[edge->nodeb()];
+      const Vector2 centerb = iconb->get_center(pad);
+
+      bool active = branch->is_active(leaf);
+      Color color = active ? RED : GRAY;
+      DrawLineEx(center, centerb, 4.0, color);
+    }
+  }
+
+  // draw icons and user interact in second pass
+  bool btn_pressed = false;
+  for (auto &[id, icon] : skillicons) {
+    Leaf *leaf = skilltree->get_leaf(id);
+    Node *node = skilltree->get_node(id);
+    const Rectangle rect = icon.get_rect(pad);
+
+    // user interact
+    bool collision = CheckCollisionPointRec(mouse, rect) && leaf->is_active();
+    btn_pressed = btn_pressed || collision;
     if (collision && clicked) {
       leaf->upgrade();
+
+      for (const auto &eid : node->edges) {
+        const Edge *edge = skilltree->get_edge(eid);
+        if (edge->nodea() != id) {
+          continue;
+        }
+
+        Leaf *leafb = skilltree->get_leaf(edge->nodeb());
+        const Branch *branch = skilltree->get_branch(eid);
+        bool active = branch->is_active(leaf);
+
+        // activate branched skills
+        if (active) {
+          skilltree->activate_leaf(leafb->get_id());
+        }
+      }
     }
-
-		// draw edges
-		for (const auto &eid : node->edges) {
-			const Edge *edge = skilltree->get_edge(eid);
-			if (edge->nodea() != id) {
-				continue;
-			}
-
-			const Branch *branch = skilltree->get_branch(eid);
-
-			Skillicon *iconb = &skillicons[edge->nodeb()];
-			Leaf *leafb = skilltree->get_leaf(edge->nodeb());
-			const Vector2 centerb = iconb->get_center(pad);
-
-			bool active = branch->is_active(leaf);
-			Color color = active ? RED : GRAY;
-			DrawLineEx(center, centerb, 4.0, color);
-
-			// activate branched skills
-			if (active) {
-				skilltree->activate_leaf(leafb->get_id());
-				//leafb->activate();
-			}
-		}
-
-		// draw icon
+    // draw icon
     icon.draw(leaf, rect, collision);
+  }
+
+  if (!btn_pressed && IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+    Vector2 delta = GetMouseDelta();
+    pad = Vector2Add(delta, pad);
   }
 }
 
-void dispose() { delete skilltree; }
+void dispose() {
+  skilltree->cleanup();
+  delete skilltree;
+}
 
 //----------------------------------------------------------------------------------
 // Main Entry Point
@@ -133,7 +126,6 @@ int main() {
   SetTargetFPS(60); // Set our game to run at 60 frames-per-second
   //--------------------------------------------------------------------------------------
 
-
   // Main game loop
   while (!WindowShouldClose()) // Detect window close button or ESC key
   {
@@ -144,17 +136,121 @@ int main() {
   // De-Initialization
   //--------------------------------------------------------------------------------------
   CloseWindow(); // Close window and OpenGL context
-	dispose();
+  dispose();
   //--------------------------------------------------------------------------------------
 
   return 0;
 }
 
-
 void UpdateDrawFrame(void) {
+	if (config_file_timestamp != GetFileModTime(config_filename)) {
+		dispose();
+		init();
+	}
 
   BeginDrawing();
-		ClearBackground(RAYWHITE);
-		draw();
+  ClearBackground(RAYWHITE);
+  draw();
   EndDrawing();
+}
+
+#include <sstream>
+#include <string>
+#include "external/INIReader.h"
+
+void parse_config(Skilltree *skilltree) {
+  INIReader reader(config_filename);
+
+	config_file_timestamp = GetFileModTime(config_filename);
+
+	if (reader.ParseError() < 0) {
+		TraceLog(LOG_ERROR, TextFormat("ini read parse error #%d", reader.ParseError()));
+		return;
+	}
+
+  std::map<std::string, BranchProgressMode> name_modes = {
+      {"any", BranchProgressMode::ANY},
+      {"min", BranchProgressMode::MINIMUM},
+      {"max", BranchProgressMode::MAXIMUM}};
+  std::map<std::string, nodeid> name_to_id;
+
+  Vector2 cell = {128.0 + 16.0, 128.0 + 16.0};
+	char delimiter = ',';
+
+	// load icons and skills
+  std::set<std::string> sections = reader.GetSections();
+  for (std::set<std::string>::iterator sectionsIt = sections.begin();
+       sectionsIt != sections.end(); sectionsIt++) {
+		auto section = *sectionsIt;
+		TraceLog(LOG_INFO, TextFormat("Add skill: %s", sectionsIt->c_str()));
+    const int leafid = skilltree->add_leaf();
+    name_to_id[section] = leafid;
+    Leaf *leaf = skilltree->get_leaf(leafid);
+
+		const BranchProgressMode mode = name_modes[reader.Get(section, "mode", "max")];
+    Skillinfo s = {
+                   .points = (int)reader.GetInteger(section, "points", 0),
+                   .maxpoints = (int)reader.GetInteger(section, "maxpoints", 4),
+									 .active = reader.GetBoolean(section, "active", false),
+                   .mode = mode,
+									 .name = section
+		};
+	 	leaf->setup(s);
+
+		Vector2 pos = { 0.0, 0.0 };
+		auto pos_origin = reader.Get(section, "pos_origin", "");
+		auto pos_shift = reader.Get(section, "pos_shift", "");
+
+		if (pos_shift.length() && pos_origin.length()) {
+			nodeid originid = name_to_id[pos_origin];
+			Skillicon *icon = &skillicons[originid];
+			auto delimiter_find = pos_shift.find(delimiter);
+
+			if (delimiter_find != std::string::npos) {
+				auto sx = pos_shift.substr(0, delimiter_find);
+				auto sy = pos_shift.substr(delimiter_find + 1, pos_shift.length());
+				float x = std::stof(sx);
+				float y = std::stof(sy);
+				const Vector2 origin = icon->get_pos();
+
+				pos.x = origin.x + cell.x * x;
+				pos.y = origin.y + cell.y * y;
+			}
+		}
+
+		auto icon_name = reader.Get(section, "icon", "UNKNOWN");
+    Texture texture = LoadTexture(TextFormat(RES_PATH "icons/%s.png", icon_name.c_str()));
+
+    skillicons[leafid] = Skillicon(texture, pos, leafid);
+  }
+
+	// load branches
+  for (std::set<std::string>::iterator sectionsIt = sections.begin();
+       sectionsIt != sections.end(); sectionsIt++) {
+		auto branches = reader.Get(*sectionsIt, "branches", "");
+		if (!branches.length()) {
+			continue;
+		}
+
+		std::stringstream ss (branches);
+		std::string item;
+
+		nodeid leafa = name_to_id[*sectionsIt];
+    while (getline (ss, item, delimiter)) {
+			nodeid leafb = -1;
+			auto delimiter_find = item.find(':');
+			BranchProgressMode mode = BranchProgressMode::MAXIMUM;
+			if (delimiter_find != std::string::npos) {
+				auto name = item.substr(0, delimiter_find);
+				auto smode = item.substr(delimiter_find + 1, item.length());
+				mode = name_modes[smode];
+				leafb = name_to_id[name];
+			} else {
+				leafb = name_to_id[item];
+			}
+
+			// in config branches reversed - they listed in INPUT leafs
+			skilltree->add_branch(leafb, leafa, mode);
+		}
+	}
 }
