@@ -57,6 +57,8 @@ class Dukscript {
 
 	/**
 	 * evals json. Work with stack manually after that
+	 * Call pop(2) after operations made
+	 *
 	 * @param filename path to file
 	 * @returns {bool} true if parsing success
 	 */

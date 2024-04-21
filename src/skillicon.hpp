@@ -24,6 +24,9 @@ public:
     this->pos = s.pos;
     this->leafid = s.leafid;
 	}
+	~Skillicon() {
+		UnloadTexture(this->texture);
+	}
 
   int get_id() { return this->leafid; }
 

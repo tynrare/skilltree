@@ -28,7 +28,7 @@ const char *config_filename = RES_PATH "skills.json";
 int points_spent = 0;
 
 void UpdateDrawFrame(void);
-void parse_config(Skilltree *skilltree);
+bool parse_config(Skilltree *skilltree);
 
 int screenWidth = 800;
 int screenHeight = 450;
@@ -38,6 +38,8 @@ void init() {
   dukscript = new Dukscript();
 
   dukscript->eval("print('Dukscript initialized');");
+
+	points_spent = 0;
 
   parse_config(skilltree);
   return;
@@ -103,13 +105,18 @@ void draw() {
   }
 
   const int fontsize = 20;
-  DrawText(TextFormat("%d spent", points_spent), 8, screenHeight - fontsize - 8,
+  DrawText(TextFormat("%d spent", points_spent), 8, GetScreenHeight() - fontsize - 8,
            fontsize, BLACK);
 }
 
 void dispose() {
   skilltree->cleanup();
+	skillicons.clear();
+
+	// todo: texture uloading
+	
   delete skilltree;
+
 }
 
 //----------------------------------------------------------------------------------
@@ -169,12 +176,12 @@ struct SkilliconContructInfo {
   std::vector<std::string> branches;
 };
 
-void parse_config(Skilltree *skilltree) {
+bool parse_config(Skilltree *skilltree) {
   config_file_timestamp = GetFileModTime(config_filename);
 
   const bool parsed = dukscript->parse_json_file(RES_PATH "skills.json");
   if (!parsed) {
-    return;
+    return false;
   }
 
   std::vector<SkilliconContructInfo> construct_infos;
@@ -231,14 +238,16 @@ void parse_config(Skilltree *skilltree) {
     construct_infos.push_back(ci);
   }
 
-  dukscript->pop(); // enumerator pop
+	// enumerator pop
+	// json string pop
+  dukscript->pop(2); 
 
   // --- adding skills into tree
 
   std::map<std::string, nodeid> name_to_id;
   Vector2 cell = {128.0 + 16.0, 128.0 + 16.0};
 
-  // create icons
+  // create leafs icons
   for (const auto &ci : construct_infos) {
     const int leafid = skilltree->add_leaf();
     name_to_id[ci.info.name] = leafid;
@@ -282,5 +291,7 @@ void parse_config(Skilltree *skilltree) {
       skilltree->add_branch(leafb, leafa, mode);
     }
   }
+
+	return true;
 }
 

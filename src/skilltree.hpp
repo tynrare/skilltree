@@ -1,7 +1,6 @@
 #pragma once
 #include "graph.hpp"
 #include <algorithm>
-#include <cstdlib>
 #include <raylib.h>
 #include <string>
 
@@ -26,7 +25,7 @@ struct Skillinfo {
   int maxpoints;
   bool active;
   BranchProgressMode mode;
-  std::string name;
+	std::string name;
 };
 
 class Leaf {
@@ -53,7 +52,7 @@ public:
   bool is_active() const { return this->info.active; }
   int get_points() const { return this->info.points; }
   int get_maxpoints() const { return this->info.maxpoints; }
-  const std::string &get_name() const { return this->info.name; }
+  const std::string get_name() const { return this->info.name; }
 
   void setup(int points, int maxpoints, bool active,
              BranchProgressMode mode = BranchProgressMode::ANY) {

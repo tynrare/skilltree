@@ -1,5 +1,18 @@
 {
 	"leaf_01": { "icon": "SGI_01", "points": 0, "maxpoints": 4, "active": true },
 	"leaf_02": { "icon": "SGI_02", "points": 0, "maxpoints": 4, "follows": "leaf_01", "shift": [ 1, 0 ], "branches": [ "leaf_01:min" ] },
-	"leaf_03": { "icon": "SGI_03", "follows": "leaf_02", "shift": [ 1, 1 ], "branches": [ "leaf_02" ] }
+	"leaf_03": { "icon": "SGI_03", "follows": "leaf_02", "shift": [ 1, 1 ], "branches": [ "leaf_02" ] },
+	"leaf_04": { "icon": "SGI_04", "follows": "leaf_01", "shift": [ 0, 2 ], "branches": [ "leaf_01" ] },
+	"leaf_05": { "icon": "SGI_05", "follows": "leaf_04", "mode": "any", "shift": [ 1, 1 ], "branches": [ "leaf_04", "leaf_06:min" ] },
+	"leaf_06": { "icon": "SGI_06", "follows": "leaf_03", "mode": "max", "shift": [ 0, 1 ], "branches": [ "leaf_03:min" ] },
+	"leaf_07": { "icon": "SGI_07", "follows": "leaf_01", "mode": "max", "shift": [ -2, 0 ], "branches": [ "leaf_01" ] },
+	"leaf_08": { "icon": "SGI_08", "follows": "leaf_03", "shift": [ 1, 0 ], "branches": [ "leaf_03" ] },
+	"leaf_09": { "icon": "SGI_09", "follows": "leaf_07", "shift": [ -1, 1 ], "branches": [ "leaf_07" ] },
+	"leaf_10": { "icon": "SGI_10", "follows": "leaf_09", "shift": [ -1, 0 ], "branches": [ "leaf_09:any" ] },
+	"leaf_11": { "icon": "SGI_11", "follows": "leaf_09", "shift": [ 0, 2 ], "branches": [ "leaf_09:min", "leaf_12" ] },
+	"leaf_12": { "icon": "SGI_12", "follows": "leaf_04", "shift": [ -2, 0 ], "branches": [ "leaf_04" ] },
+	"leaf_13": { "icon": "SGI_13", "follows": "leaf_11", "shift": [ 1, 1 ], "branches": [ "leaf_11:any", "leaf_16" ] },
+	"leaf_14": { "icon": "SGI_14", "follows": "leaf_10", "shift": [ -1, 1 ], "branches": [ "leaf_10" ] },
+	"leaf_15": { "icon": "SGI_15", "follows": "leaf_08", "shift": [ 1, -1 ], "branches": [ "leaf_08" ] },
+	"leaf_16": { "icon": "SGI_16", "follows": "leaf_12", "shift": [ 1, 1 ], "branches": [ "leaf_12", "leaf_04" ] }
 }
