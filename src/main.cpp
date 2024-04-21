@@ -39,7 +39,8 @@ void init() {
 
   dukscript->eval("print('Dukscript initialized');");
 
-	points_spent = 0;
+  dukscript->eval_file(RES_PATH "skills.js");
+  points_spent = 0;
 
   parse_config(skilltree);
   return;
@@ -47,12 +48,30 @@ void init() {
 
 Vector2 pad = {16.0, 16.0};
 
+const char *get_leaf_desription(Leaf *l) {
+  const char *str = NULL;
+  if (dukscript->call_prepare(l->get_bind().c_str())) {
+    dukscript->push_int(l->get_points());
+    dukscript->push_int(l->get_maxpoints());
+    if (dukscript->call(2)) {
+      str = dukscript->get_string();
+      dukscript->pop();
+    }
+    dukscript->pop();
+  }
+
+  return str;
+}
+
 void draw() {
+  const int fontsize = 20;
   Vector2 mouse = GetMousePosition();
   bool clicked = IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
   bool clicked_second = IsMouseButtonPressed(MOUSE_BUTTON_RIGHT);
 
-  // draw edges in first pass
+  Leaf *selected_leaf = nullptr;
+
+  // draw branches in first pass (z-index 0)
   for (auto &[id, icon] : skillicons) {
     Leaf *leaf = skilltree->get_leaf(id);
     Node *node = skilltree->get_node(id);
@@ -74,49 +93,70 @@ void draw() {
     }
   }
 
-  // draw icons and user interact in second pass
-  bool btn_pressed = false;
+  // draw icons 
   for (auto &[id, icon] : skillicons) {
     Leaf *leaf = skilltree->get_leaf(id);
-    //Node *node = skilltree->get_node(id);
+    // Node *node = skilltree->get_node(id);
     const Rectangle rect = icon.get_rect(pad);
 
     // user interact
     bool collision = CheckCollisionPointRec(mouse, rect) && leaf->is_active();
-    btn_pressed = btn_pressed || collision;
-    if (collision && clicked) {
-      // upgrade leaf
-      const int delta = leaf->upgrade();
-      points_spent += delta;
-      skilltree->refresh_leaf(id);
-    } else if (collision && clicked_second) {
-      // downgrade leaf
-      const int delta = leaf->downgrade();
-      points_spent += delta;
-      points_spent += skilltree->refresh_leaf(id);
+    if (collision) {
+      selected_leaf = leaf;
     }
     // draw icon
     icon.draw(leaf, rect, collision);
   }
 
-  if (!btn_pressed && IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+	// upgrade logic, user interact.
+	// Icon draw will be delayed on one frame
+  if (selected_leaf) {
+    int direction = 0;
+    if (clicked) {
+      direction = 1;
+    } else if (clicked_second) {
+      direction = -1;
+    }
+
+    if (direction != 0) {
+      const int delta = selected_leaf->upgrade(direction);
+      points_spent += delta;
+      points_spent += skilltree->refresh_leaf(selected_leaf->get_id());
+    }
+  }
+
+	// draw leaf text fetchet from js
+  if (selected_leaf != nullptr && selected_leaf->has_bind()) {
+    const auto bind = selected_leaf->get_bind();
+    const char *description = get_leaf_desription(selected_leaf);
+    if (description != NULL) {
+      DrawText(description, mouse.x + 6, mouse.y + 6, fontsize, WHITE);
+      DrawText(description, mouse.x + 4, mouse.y + 4, fontsize, BLACK);
+    }
+  }
+
+	// canvas drag
+  if (selected_leaf == nullptr && IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
     Vector2 delta = GetMouseDelta();
     pad = Vector2Add(delta, pad);
   }
 
-  const int fontsize = 20;
-  DrawText(TextFormat("%d spent", points_spent), 8, GetScreenHeight() - fontsize - 8,
-           fontsize, BLACK);
+	// UI, mouse
+  DrawText(TextFormat("%d spent", points_spent), 8,
+           GetScreenHeight() - fontsize - 8, fontsize, BLACK);
+
+  DrawCircle(mouse.x, mouse.y, 8, WHITE);
+  DrawCircle(mouse.x, mouse.y, 6, BLACK);
 }
 
 void dispose() {
   skilltree->cleanup();
-	skillicons.clear();
+  skillicons.clear();
 
-	// todo: texture uloading
-	
+  // todo: texture uloading
+
   delete skilltree;
-
+  delete dukscript;
 }
 
 //----------------------------------------------------------------------------------
@@ -133,8 +173,8 @@ int main() {
 #if defined(PLATFORM_WEB)
   emscripten_set_main_loop(UpdateDrawFrame, 0, 1);
 #else
-  SetTargetFPS(60); // Set our game to run at 60 frames-per-second
-  //--------------------------------------------------------------------------------------
+  SetTargetFPS(60);
+  HideCursor();
 
   // Main game loop
   while (!WindowShouldClose()) // Detect window close button or ESC key
@@ -197,6 +237,7 @@ bool parse_config(Skilltree *skilltree) {
     const char *key = dukscript->get_string(-2);
 
     const char *icon_name = dukscript->get_string_by_key("icon", "UNKNOWN");
+    const char *bind = dukscript->get_string_by_key("bind", "");
     int points = dukscript->get_int_by_key("points", 0);
     int maxpoints = dukscript->get_int_by_key("maxpoints", 4);
     bool active = dukscript->get_bool_by_key("active", false);
@@ -208,9 +249,9 @@ bool parse_config(Skilltree *skilltree) {
     if (dukscript->read_object("shift")) {
       sx = dukscript->get_int_by_index(0, 0);
       sy = dukscript->get_int_by_index(1, 0);
+      dukscript->pop(); // pop shift
     }
-    dukscript->pop(); // pop shift
-                      //
+    //
     if (dukscript->read_object("branches")) {
       int len = dukscript->get_array_length();
       for (int i = 0; i < len; i++) {
@@ -219,8 +260,9 @@ bool parse_config(Skilltree *skilltree) {
           ci.branches.push_back(b);
         }
       }
+      dukscript->pop(); // pop branches
     }
-    dukscript->pop();  // pop branches
+
     dukscript->pop(2); // pop key, value
 
     const BranchProgressMode mode = name_modes[smode];
@@ -228,7 +270,8 @@ bool parse_config(Skilltree *skilltree) {
                    .maxpoints = maxpoints,
                    .active = active,
                    .mode = mode,
-                   .name = key};
+                   .name = key,
+                   .bind = bind};
 
     ci.info = s;
     ci.shift = {sx, sy};
@@ -238,9 +281,9 @@ bool parse_config(Skilltree *skilltree) {
     construct_infos.push_back(ci);
   }
 
-	// enumerator pop
-	// json string pop
-  dukscript->pop(2); 
+  // enumerator pop
+  // json string pop
+  dukscript->pop(2);
 
   // --- adding skills into tree
 
@@ -292,6 +335,5 @@ bool parse_config(Skilltree *skilltree) {
     }
   }
 
-	return true;
+  return true;
 }
-

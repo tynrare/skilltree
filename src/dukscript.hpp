@@ -9,6 +9,14 @@ static duk_ret_t native_print(duk_context *ctx) {
 	return 0;
 }
 
+/**
+ * Wrapper for decode safe call
+ *
+ * @param ctx
+ * @param t
+ *
+ * @return 
+ */
 static duk_ret_t call_json_decode(duk_context *ctx, void *t) {
 	duk_json_decode(ctx, -1);
 
@@ -50,8 +58,66 @@ class Dukscript {
 	}
 
 	void eval(const char *script) {
-		duk_eval_string(this->ctx, script);
-		duk_pop(this->ctx); // ignore result
+		duk_eval_string_noresult(this->ctx, script);
+	}
+
+	bool eval_file(const char *filename) {
+		char *filecontent = LoadFileText(filename);
+		if (filecontent == NULL) {
+			return false;
+		}
+
+		duk_push_string(this->ctx, filecontent);
+
+    if (duk_peval(ctx) != DUK_EXEC_SUCCESS) {
+				TraceLog(LOG_ERROR, TextFormat("Eval file Error: %s\n", duk_safe_to_string(ctx, -1)));
+				return false;
+    }
+
+		return true;
+	}
+
+	/**
+	 * Call pop un success after all operations
+	 *
+	 * @param funcname
+	 * @param idx
+	 *
+	 * @return 
+	 */
+	bool call_prepare(const char *funcname, int idx = -1) {
+		duk_push_global_object(this->ctx);
+		duk_get_prop_string(this->ctx, idx, funcname);
+
+		if (!duk_is_function(this->ctx, -1)) {
+				TraceLog(LOG_ERROR, TextFormat("Call function Error: no funciton '%s' found", funcname));
+			this->pop();
+			return false;
+		}
+
+		return true;
+	}
+
+	/**
+	 * 1. call_prepare()
+	 * 2. push_*
+	 * 3. call(arguments_count)
+	 *
+	 * Call pop on success
+	 *
+	 * @param arguments
+	 * @param idx
+	 *
+	 * @return 
+	 */
+	bool call(int arguments = 0, int idx = -1) {
+		if(duk_pcall(this->ctx, arguments) != DUK_EXEC_SUCCESS) {
+				TraceLog(LOG_ERROR, TextFormat("Call function Error: %s\n", duk_safe_to_string(ctx, -1)));
+				this->pop();
+				return false;
+		}
+
+		return true;
 	}
 
 
@@ -63,7 +129,7 @@ class Dukscript {
 	 * @returns {bool} true if parsing success
 	 */
 	bool parse_json_file(const char *filename) {
-		const char *filecontent = LoadFileText(filename);
+		char *filecontent = LoadFileText(filename);
 		if (filecontent == NULL) {
 			return false;
 		}
@@ -71,11 +137,15 @@ class Dukscript {
 		int rc = duk_safe_call(this->ctx, call_json_decode, NULL, 1, 1);
 		if (rc != DUK_EXEC_SUCCESS) {
 			TraceLog(LOG_ERROR, TextFormat("Error parsing JSON: %s\n", duk_safe_to_string(ctx, -1)));
+			this->pop();
 
 			return false;
 		}
 
 		duk_enum(this->ctx, -1, DUK_ENUM_OWN_PROPERTIES_ONLY);
+
+		// todo: UnloadText
+		UnloadFileText(filecontent);
 
 		return true;
 	}
@@ -98,18 +168,27 @@ class Dukscript {
 	/**
 	 * Do it when you need "enter" nested object
 	 * Don't forget to pop() after all operations made
+	 * (pop() only on success return)
 	 *
 	 * @param key
 	 * @param idx
 	 */
 	bool read_object(const char *key, int idx = -1) {
 		bool rc = duk_get_prop_string(this->ctx, idx, key);
+		if (!rc) {
+			this->pop();
+		}
 
 		return rc;
 	}
 
 	bool read_object(int idx = -1) {
-		return duk_get_prop(this->ctx, idx);
+		bool rc = duk_get_prop(this->ctx, idx);
+		if (!rc) {
+			this->pop();
+		}
+
+		return rc;
 	}
 
 	int get_array_length(int idx = -1) {
@@ -173,6 +252,14 @@ class Dukscript {
 
 	void pop(int count = 1) {
 		duk_pop_n(this->ctx, count);
+	}
+
+	void push_string(const char *s) {
+		duk_push_string(this->ctx, s);
+	}
+
+	void push_int(int v) {
+		duk_push_int(this->ctx, v);
 	}
 
 	private:

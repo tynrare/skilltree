@@ -166,3 +166,15 @@ void _parse_config(Skilltree *skilltree) {
   }
 }
 #endif
+
+#if 0
+	if(dukscript->call_prepare("test")) {
+		dukscript->push_string("aaa");
+		if(dukscript->call(1)) {
+			const char *ret = dukscript->get_string();
+			dukscript->pop();
+		}
+		dukscript->pop();
+	}
+
+#endif

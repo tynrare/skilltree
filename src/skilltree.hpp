@@ -26,6 +26,7 @@ struct Skillinfo {
   bool active;
   BranchProgressMode mode;
 	std::string name;
+	std::string bind;
 };
 
 class Leaf {
@@ -52,7 +53,9 @@ public:
   bool is_active() const { return this->info.active; }
   int get_points() const { return this->info.points; }
   int get_maxpoints() const { return this->info.maxpoints; }
-  const std::string get_name() const { return this->info.name; }
+  const std::string &get_name() const { return this->info.name; }
+  const std::string &get_bind() const { return this->info.bind; }
+  const bool has_bind() const { return this->get_bind().length() > 0; }
 
   void setup(int points, int maxpoints, bool active,
              BranchProgressMode mode = BranchProgressMode::ANY) {
@@ -231,8 +234,6 @@ public:
 			}
 
 			Leaf *leafb = this->get_leaf(edge->nodeb());
-			const Branch *branch = this->get_branch(eid);
-			bool active = branch->is_active(leaf);
 
 			points_delta += this->refresh_leaf(leafb->get_id());
 		}
