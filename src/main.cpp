@@ -14,9 +14,9 @@
 
 // #include <iostream>
 // #include <ostream>
+#include "dukscript.hpp"
 #include "skillicon.hpp"
 #include "skilltree.hpp"
-#include "dukscript.hpp"
 
 using namespace tynskills;
 
@@ -24,7 +24,7 @@ Skilltree *skilltree;
 Dukscript *dukscript;
 std::map<nodeid, Skillicon> skillicons;
 long config_file_timestamp = 0;
-const char *config_filename = RES_PATH "skills.ini";
+const char *config_filename = RES_PATH "skills.json";
 int points_spent = 0;
 
 void UpdateDrawFrame(void);
@@ -35,13 +35,12 @@ int screenHeight = 450;
 
 void init() {
   skilltree = new Skilltree();
-	dukscript = new Dukscript();
+  dukscript = new Dukscript();
 
-	dukscript->eval("print('Dukscript initialized');");
-	//dukscript->eval("var a = 1");
+  dukscript->eval("print('Dukscript initialized');");
 
   parse_config(skilltree);
-	return;
+  return;
 }
 
 Vector2 pad = {16.0, 16.0};
@@ -77,23 +76,23 @@ void draw() {
   bool btn_pressed = false;
   for (auto &[id, icon] : skillicons) {
     Leaf *leaf = skilltree->get_leaf(id);
-    Node *node = skilltree->get_node(id);
+    //Node *node = skilltree->get_node(id);
     const Rectangle rect = icon.get_rect(pad);
 
     // user interact
     bool collision = CheckCollisionPointRec(mouse, rect) && leaf->is_active();
     btn_pressed = btn_pressed || collision;
     if (collision && clicked) {
-			// upgrade leaf
+      // upgrade leaf
       const int delta = leaf->upgrade();
-			points_spent += delta;
-			skilltree->refresh_leaf(id);
+      points_spent += delta;
+      skilltree->refresh_leaf(id);
     } else if (collision && clicked_second) {
-			// downgrade leaf
+      // downgrade leaf
       const int delta = leaf->downgrade();
-			points_spent += delta;
-			points_spent += skilltree->refresh_leaf(id);
-		}
+      points_spent += delta;
+      points_spent += skilltree->refresh_leaf(id);
+    }
     // draw icon
     icon.draw(leaf, rect, collision);
   }
@@ -103,9 +102,9 @@ void draw() {
     pad = Vector2Add(delta, pad);
   }
 
-	const int fontsize = 20;
-	DrawText(TextFormat("%d spent", points_spent), 
-			8, screenHeight - fontsize - 8, fontsize, BLACK);
+  const int fontsize = 20;
+  DrawText(TextFormat("%d spent", points_spent), 8, screenHeight - fontsize - 8,
+           fontsize, BLACK);
 }
 
 void dispose() {
@@ -147,10 +146,10 @@ int main() {
 }
 
 void UpdateDrawFrame(void) {
-	if (config_file_timestamp != GetFileModTime(config_filename)) {
-		dispose();
-		init();
-	}
+  if (config_file_timestamp != GetFileModTime(config_filename)) {
+    dispose();
+    init();
+  }
 
   BeginDrawing();
   ClearBackground(RAYWHITE);
@@ -158,108 +157,130 @@ void UpdateDrawFrame(void) {
   EndDrawing();
 }
 
-#include <sstream>
-#include <string>
-#include "external/INIReader.h"
+// ----
 
-/**
- * ini entries sorted by name. All names has to be ordered carefully
- *
- * @param skilltree
- */
+#include <vector>
+
+struct SkilliconContructInfo {
+  Skillinfo info;
+  Vector2 shift;
+  std::string follows;
+  std::string icon_name;
+  std::vector<std::string> branches;
+};
+
 void parse_config(Skilltree *skilltree) {
-  INIReader reader(config_filename);
+  config_file_timestamp = GetFileModTime(config_filename);
 
-	config_file_timestamp = GetFileModTime(config_filename);
+  const bool parsed = dukscript->parse_json_file(RES_PATH "skills.json");
+  if (!parsed) {
+    return;
+  }
 
-	if (reader.ParseError() < 0) {
-		TraceLog(LOG_ERROR, TextFormat("ini read parse error #%d", reader.ParseError()));
-		return;
-	}
+  std::vector<SkilliconContructInfo> construct_infos;
 
   std::map<std::string, BranchProgressMode> name_modes = {
       {"any", BranchProgressMode::ANY},
       {"min", BranchProgressMode::MINIMUM},
       {"max", BranchProgressMode::MAXIMUM}};
-  std::map<std::string, nodeid> name_to_id;
 
-  Vector2 cell = {128.0 + 16.0, 128.0 + 16.0};
-	char delimiter = ',';
+  while (dukscript->next()) {
+    SkilliconContructInfo ci;
 
-	// load icons and skills
-  std::set<std::string> sections = reader.GetSections();
-  for (std::set<std::string>::iterator sectionsIt = sections.begin();
-       sectionsIt != sections.end(); sectionsIt++) {
-		auto section = *sectionsIt;
-		TraceLog(LOG_INFO, TextFormat("Add skill: %s", sectionsIt->c_str()));
-    const int leafid = skilltree->add_leaf();
-    name_to_id[section] = leafid;
-    Leaf *leaf = skilltree->get_leaf(leafid);
+    const char *key = dukscript->get_string(-2);
 
-		const BranchProgressMode mode = name_modes[reader.Get(section, "mode", "max")];
-    Skillinfo s = {
-                   .points = (int)reader.GetInteger(section, "points", 0),
-                   .maxpoints = (int)reader.GetInteger(section, "maxpoints", 4),
-									 .active = reader.GetBoolean(section, "active", false),
+    const char *icon_name = dukscript->get_string_by_key("icon", "UNKNOWN");
+    int points = dukscript->get_int_by_key("points", 0);
+    int maxpoints = dukscript->get_int_by_key("maxpoints", 4);
+    bool active = dukscript->get_bool_by_key("active", false);
+    const char *follows = dukscript->get_string_by_key("follows", "");
+    const char *smode = dukscript->get_string_by_key("mode", "max");
+    float sx = 0;
+    float sy = 0;
+
+    if (dukscript->read_object("shift")) {
+      sx = dukscript->get_int_by_index(0, 0);
+      sy = dukscript->get_int_by_index(1, 0);
+    }
+    dukscript->pop(); // pop shift
+                      //
+    if (dukscript->read_object("branches")) {
+      int len = dukscript->get_array_length();
+      for (int i = 0; i < len; i++) {
+        std::string b = dukscript->get_string_by_index(i, "");
+        if (b.length()) {
+          ci.branches.push_back(b);
+        }
+      }
+    }
+    dukscript->pop();  // pop branches
+    dukscript->pop(2); // pop key, value
+
+    const BranchProgressMode mode = name_modes[smode];
+    Skillinfo s = {.points = points,
+                   .maxpoints = maxpoints,
+                   .active = active,
                    .mode = mode,
-									 .name = section
-		};
-	 	leaf->setup(s);
+                   .name = key};
 
-		Vector2 pos = { 0.0, 0.0 };
-		auto pos_origin = reader.Get(section, "pos_origin", "");
-		auto pos_shift = reader.Get(section, "pos_shift", "");
+    ci.info = s;
+    ci.shift = {sx, sy};
+    ci.follows = follows;
+    ci.icon_name = icon_name;
 
-		if (pos_shift.length() && pos_origin.length()) {
-			nodeid originid = name_to_id[pos_origin];
-			Skillicon *icon = &skillicons[originid];
-			auto delimiter_find = pos_shift.find(delimiter);
+    construct_infos.push_back(ci);
+  }
 
-			if (delimiter_find != std::string::npos) {
-				auto sx = pos_shift.substr(0, delimiter_find);
-				auto sy = pos_shift.substr(delimiter_find + 1, pos_shift.length());
-				float x = std::stof(sx);
-				float y = std::stof(sy);
-				const Vector2 origin = icon->get_pos();
+  dukscript->pop(); // enumerator pop
 
-				pos.x = origin.x + cell.x * x;
-				pos.y = origin.y + cell.y * y;
-			}
-		}
+  // --- adding skills into tree
 
-		auto icon_name = reader.Get(section, "icon", "UNKNOWN");
-    Texture texture = LoadTexture(TextFormat(RES_PATH "icons/%s.png", icon_name.c_str()));
+  std::map<std::string, nodeid> name_to_id;
+  Vector2 cell = {128.0 + 16.0, 128.0 + 16.0};
 
+  // create icons
+  for (const auto &ci : construct_infos) {
+    const int leafid = skilltree->add_leaf();
+    name_to_id[ci.info.name] = leafid;
+    Leaf *leaf = skilltree->get_leaf(leafid);
+    leaf->setup(ci.info);
+
+    // pos
+    Vector2 pos = {cell.x * ci.shift.x, cell.y * ci.shift.y};
+    if (ci.follows.length()) {
+      nodeid originid = name_to_id[ci.follows];
+      Skillicon *icon = &skillicons[originid];
+      const Vector2 origin = icon->get_pos();
+
+      pos.x += origin.x;
+      pos.y += origin.y;
+    }
+
+    Texture texture =
+        LoadTexture(TextFormat(RES_PATH "icons/%s.png", ci.icon_name.c_str()));
     skillicons[leafid] = Skillicon(texture, pos, leafid);
   }
 
-	// load branches
-  for (std::set<std::string>::iterator sectionsIt = sections.begin();
-       sectionsIt != sections.end(); sectionsIt++) {
-		auto branches = reader.Get(*sectionsIt, "branches", "");
-		if (!branches.length()) {
-			continue;
-		}
+  // create branches
+  for (const auto &ci : construct_infos) {
+    nodeid leafa = name_to_id[ci.info.name];
 
-		std::stringstream ss (branches);
-		std::string item;
+    for (const auto &branch : ci.branches) {
+      nodeid leafb = -1;
+      auto delimiter_find = branch.find(':');
+      BranchProgressMode mode = BranchProgressMode::MAXIMUM;
+      if (delimiter_find != std::string::npos) {
+        auto name = branch.substr(0, delimiter_find);
+        auto smode = branch.substr(delimiter_find + 1, branch.length());
+        mode = name_modes[smode];
+        leafb = name_to_id[name];
+      } else {
+        leafb = name_to_id[branch];
+      }
 
-		nodeid leafa = name_to_id[*sectionsIt];
-    while (getline (ss, item, delimiter)) {
-			nodeid leafb = -1;
-			auto delimiter_find = item.find(':');
-			BranchProgressMode mode = BranchProgressMode::MAXIMUM;
-			if (delimiter_find != std::string::npos) {
-				auto name = item.substr(0, delimiter_find);
-				auto smode = item.substr(delimiter_find + 1, item.length());
-				mode = name_modes[smode];
-				leafb = name_to_id[name];
-			} else {
-				leafb = name_to_id[item];
-			}
-
-			// in config branches reversed - they listed in INPUT leafs
-			skilltree->add_branch(leafb, leafa, mode);
-		}
-	}
+      // in config branches reversed - they listed in INPUT leafs
+      skilltree->add_branch(leafb, leafa, mode);
+    }
+  }
 }
+

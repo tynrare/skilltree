@@ -1,7 +1,7 @@
 source "../emsdk/emsdk_env.sh"
 rm -rf pub/web
 mkdir -p pub/web
-emcc src/*.cpp src/**/*.cpp src/**/*.c \
+emcc src/*.cpp src/**/*.c \
 	-o pub/web/index.html \
 	--shell-file shell_minimal.html \
 	--preload-file res \

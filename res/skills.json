@@ -1,0 +1,5 @@
+{
+	"leaf_01": { "icon": "SGI_01", "points": 0, "maxpoints": 4, "active": true },
+	"leaf_02": { "icon": "SGI_02", "points": 0, "maxpoints": 4, "follows": "leaf_01", "shift": [ 1, 0 ], "branches": [ "leaf_01:min" ] },
+	"leaf_03": { "icon": "SGI_03", "follows": "leaf_02", "shift": [ 1, 1 ], "branches": [ "leaf_02" ] }
+}

@@ -57,3 +57,112 @@ void manual_skills_gen() {
   skilltree->add_branch(skill13, skill11, BranchProgressMode::MINIMUM);
 }
 #endif
+
+#if 0
+#include "external/INIReader.h"
+#include <sstream>
+#include <string>
+
+/**
+ * ini entries sorted by name. All names has to be ordered carefully
+ *
+ * @param skilltree
+ */
+void _parse_config(Skilltree *skilltree) {
+  INIReader reader(config_filename);
+
+  config_file_timestamp = GetFileModTime(config_filename);
+
+  if (reader.ParseError() < 0) {
+    TraceLog(LOG_ERROR,
+             TextFormat("ini read parse error #%d", reader.ParseError()));
+    return;
+  }
+
+  std::map<std::string, BranchProgressMode> name_modes = {
+      {"any", BranchProgressMode::ANY},
+      {"min", BranchProgressMode::MINIMUM},
+      {"max", BranchProgressMode::MAXIMUM}};
+  std::map<std::string, nodeid> name_to_id;
+
+  Vector2 cell = {128.0 + 16.0, 128.0 + 16.0};
+  char delimiter = ',';
+
+  // load icons and skills
+  std::set<std::string> sections = reader.GetSections();
+  for (std::set<std::string>::iterator sectionsIt = sections.begin();
+       sectionsIt != sections.end(); sectionsIt++) {
+    auto section = *sectionsIt;
+    TraceLog(LOG_INFO, TextFormat("Add skill: %s", sectionsIt->c_str()));
+    const int leafid = skilltree->add_leaf();
+    name_to_id[section] = leafid;
+    Leaf *leaf = skilltree->get_leaf(leafid);
+
+    const BranchProgressMode mode =
+        name_modes[reader.Get(section, "mode", "max")];
+    Skillinfo s = {.points = (int)reader.GetInteger(section, "points", 0),
+                   .maxpoints = (int)reader.GetInteger(section, "maxpoints", 4),
+                   .active = reader.GetBoolean(section, "active", false),
+                   .mode = mode,
+                   .name = section};
+    leaf->setup(s);
+
+    Vector2 pos = {0.0, 0.0};
+    auto pos_origin = reader.Get(section, "pos_origin", "");
+    auto pos_shift = reader.Get(section, "pos_shift", "");
+
+    if (pos_shift.length() && pos_origin.length()) {
+      nodeid originid = name_to_id[pos_origin];
+      Skillicon *icon = &skillicons[originid];
+      auto delimiter_find = pos_shift.find(delimiter);
+
+      if (delimiter_find != std::string::npos) {
+        auto sx = pos_shift.substr(0, delimiter_find);
+        auto sy = pos_shift.substr(delimiter_find + 1, pos_shift.length());
+        float x = std::stof(sx);
+        float y = std::stof(sy);
+        const Vector2 origin = icon->get_pos();
+
+        pos.x = origin.x + cell.x * x;
+        pos.y = origin.y + cell.y * y;
+      }
+    }
+
+    auto icon_name = reader.Get(section, "icon", "UNKNOWN");
+    Texture texture =
+        LoadTexture(TextFormat(RES_PATH "icons/%s.png", icon_name.c_str()));
+
+    skillicons[leafid] = Skillicon(texture, pos, leafid);
+  }
+
+  // load branches
+  for (std::set<std::string>::iterator sectionsIt = sections.begin();
+       sectionsIt != sections.end(); sectionsIt++) {
+    auto branches = reader.Get(*sectionsIt, "branches", "");
+    if (!branches.length()) {
+      continue;
+    }
+
+    std::stringstream ss(branches);
+    std::string item;
+
+    nodeid leafa = name_to_id[*sectionsIt];
+    while (getline(ss, item, delimiter)) {
+      nodeid leafb = -1;
+      auto delimiter_find = item.find(':');
+      BranchProgressMode mode = BranchProgressMode::MAXIMUM;
+      if (delimiter_find != std::string::npos) {
+        auto name = item.substr(0, delimiter_find);
+        auto smode = item.substr(delimiter_find + 1, item.length());
+        mode = name_modes[smode];
+        leafb = name_to_id[name];
+      } else {
+        leafb = name_to_id[item];
+      }
+
+      // in config branches reversed - they listed in INPUT leafs
+      skilltree->add_branch(leafb, leafa, mode);
+    }
+  }
+}
+#endif
