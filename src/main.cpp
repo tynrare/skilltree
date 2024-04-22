@@ -15,6 +15,7 @@
 // #include <iostream>
 // #include <ostream>
 #include "dukscript.hpp"
+#include "dust.hpp"
 #include "skillicon.hpp"
 #include "skilltree.hpp"
 
@@ -50,14 +51,17 @@ Vector2 pad = {16.0, 16.0};
 
 const char *get_leaf_desription(Leaf *l) {
   const char *str = NULL;
-  if (dukscript->call_prepare(l->get_bind().c_str())) {
+  const char *funcname = l->get_bind().c_str();
+  int rc = dukscript->call(funcname, [=]() {
     dukscript->push_int(l->get_points());
     dukscript->push_int(l->get_maxpoints());
-    if (dukscript->call(2)) {
-      str = dukscript->get_string();
-      dukscript->pop();
-    }
-    dukscript->pop();
+
+    return 2;
+  });
+
+  if (rc) {
+    str = dukscript->get_string();
+    dukscript->pop(2);
   }
 
   return str;
@@ -93,7 +97,7 @@ void draw() {
     }
   }
 
-  // draw icons 
+  // draw icons
   for (auto &[id, icon] : skillicons) {
     Leaf *leaf = skilltree->get_leaf(id);
     // Node *node = skilltree->get_node(id);
@@ -108,8 +112,8 @@ void draw() {
     icon.draw(leaf, rect, collision);
   }
 
-	// upgrade logic, user interact.
-	// Icon draw will be delayed on one frame
+  // upgrade logic, user interact.
+  // Icon draw will be delayed on one frame
   if (selected_leaf) {
     int direction = 0;
     if (clicked) {
@@ -125,23 +129,26 @@ void draw() {
     }
   }
 
-	// draw leaf text fetchet from js
+  // draw leaf text fetchet from js
   if (selected_leaf != nullptr && selected_leaf->has_bind()) {
     const auto bind = selected_leaf->get_bind();
     const char *description = get_leaf_desription(selected_leaf);
     if (description != NULL) {
-      DrawText(description, mouse.x + 6, mouse.y + 6, fontsize, WHITE);
-      DrawText(description, mouse.x + 4, mouse.y + 4, fontsize, BLACK);
+      Rectangle rect = {mouse.x + 8, mouse.y + 8, 256 - 8, 256 - 8};
+      DrawRectangle(mouse.x, mouse.y, 256, 256, Fade(BLACK, 0.7));
+      DrawTextBoxed(GetFontDefault(), description, rect, fontsize, 1, true,
+                    WHITE);
+      // DrawText(description, mouse.x + 6, mouse.y + 6, fontsize, WHITE);
     }
   }
 
-	// canvas drag
+  // canvas drag
   if (selected_leaf == nullptr && IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
     Vector2 delta = GetMouseDelta();
     pad = Vector2Add(delta, pad);
   }
 
-	// UI, mouse
+  // UI, mouse
   DrawText(TextFormat("%d spent", points_spent), 8,
            GetScreenHeight() - fontsize - 8, fontsize, BLACK);
 

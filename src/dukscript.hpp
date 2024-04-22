@@ -1,5 +1,6 @@
 #include "external/duktape.h"
 #include "raylib.h"
+#include <functional>
 
 static duk_ret_t native_print(duk_context *ctx) {
 	duk_push_string(ctx, " ");
@@ -78,14 +79,14 @@ class Dukscript {
 	}
 
 	/**
-	 * Call pop un success after all operations
+	 * Call pop(2) on success
 	 *
-	 * @param funcname
-	 * @param idx
+	 * @param funcname function to call
+	 * @param prep arguments prepare
 	 *
 	 * @return 
 	 */
-	bool call_prepare(const char *funcname, int idx = -1) {
+	bool call(const char *funcname, const std::function<int()> &prep, int idx = -1) {
 		duk_push_global_object(this->ctx);
 		duk_get_prop_string(this->ctx, idx, funcname);
 
@@ -95,25 +96,11 @@ class Dukscript {
 			return false;
 		}
 
-		return true;
-	}
+		int arguments = prep();
 
-	/**
-	 * 1. call_prepare()
-	 * 2. push_*
-	 * 3. call(arguments_count)
-	 *
-	 * Call pop on success
-	 *
-	 * @param arguments
-	 * @param idx
-	 *
-	 * @return 
-	 */
-	bool call(int arguments = 0, int idx = -1) {
 		if(duk_pcall(this->ctx, arguments) != DUK_EXEC_SUCCESS) {
 				TraceLog(LOG_ERROR, TextFormat("Call function Error: %s\n", duk_safe_to_string(ctx, -1)));
-				this->pop();
+				this->pop(2);
 				return false;
 		}
 
