@@ -25,8 +25,8 @@ struct Skillinfo {
   int maxpoints;
   bool active;
   BranchProgressMode mode;
-	std::string name;
-	std::string bind;
+  std::string name;
+  std::string bind;
 };
 
 class Leaf {
@@ -67,30 +67,30 @@ public:
   void setup(const Leaf &l) { this->info = l.info; }
   void setup(const Skillinfo &info) { this->info = info; }
 
-	/**
-	 * @param active
-	 *
-	 * @returns {int} points discarded if leaf was deactivated.
-	 * Negative value
-	 */
-	int set_active(bool active) {  
-		this->info.active = active;
-		if (!active) {
-			return this->downgrade(this->get_points());
-		}
+  /**
+   * @param active
+   *
+   * @returns {int} points discarded if leaf was deactivated.
+   * Negative value
+   */
+  int set_active(bool active) {
+    this->info.active = active;
+    if (!active) {
+      return this->downgrade(this->get_points());
+    }
 
-		return 0;
-	}
+    return 0;
+  }
   void activate() { this->set_active(true); }
 
-	/**
-	 * Upgrading possible even if leaf not active.
-	 * Validate active status before calling this function
-	 *
-	 * @param points
-	 *
-	 * @return 
-	 */
+  /**
+   * Upgrading possible even if leaf not active.
+   * Validate active status before calling this function
+   *
+   * @param points
+   *
+   * @return
+   */
   int upgrade(int points = 1) {
     int p = this->info.points;
     this->info.points =
@@ -99,11 +99,11 @@ public:
     return this->info.points - p;
   }
 
-	/**
-	 * @param points
-	 *
-	 * @returns {int} points was discarded. Negative value
-	 */
+  /**
+   * @param points
+   *
+   * @returns {int} points was discarded. Negative value
+   */
   int downgrade(int points = 1) { return this->upgrade(-points); }
 };
 
@@ -178,20 +178,20 @@ public:
 
   Edge *get_edge(int id) { return &this->graph.edges[id]; }
 
-	/**
-	 * refreshes all subleafs. Call it after upgrade or downgrade
-	 *
-	 * @param id
-	 * @returns {int} amount of points was discarded on downgrade.
-	 * Negative value
-	 */
-	int refresh_leaf(int id) {
-		int points_delta = 0;
+  /**
+   * refreshes all subleafs. Call it after upgrade or downgrade
+   *
+   * @param id
+   * @returns {int} amount of points was discarded on downgrade.
+   * Negative value
+   */
+  int refresh_leaf(int id) {
+    int points_delta = 0;
     Leaf *leaf = this->get_leaf(id);
     Node *node = this->get_node(id);
 
-		// ---
-		// update leaf active status itself
+    // ---
+    // update leaf active status itself
     int active_branches = 0;
     int total_branches = 0;
     for (const auto &eid : node->edges) {
@@ -209,7 +209,7 @@ public:
       }
     }
 
-		// active status depends on input branches and leaf mode
+    // active status depends on input branches and leaf mode
     bool active = false;
     switch (leaf->get_mode()) {
     case BranchProgressMode::ANY:
@@ -223,22 +223,22 @@ public:
       active = false;
     }
 
-		points_delta += leaf->set_active(active);
+    points_delta += leaf->set_active(active);
 
-		// ---
-		// refresh all dependent leafs
-		for (const auto &eid : node->edges) {
-			const Edge *edge = this->get_edge(eid);
-			if (edge->nodea() != id) {
-				continue;
-			}
+    // ---
+    // refresh all dependent leafs
+    for (const auto &eid : node->edges) {
+      const Edge *edge = this->get_edge(eid);
+      if (edge->nodea() != id) {
+        continue;
+      }
 
-			Leaf *leafb = this->get_leaf(edge->nodeb());
+      Leaf *leafb = this->get_leaf(edge->nodeb());
 
-			points_delta += this->refresh_leaf(leafb->get_id());
-		}
+      points_delta += this->refresh_leaf(leafb->get_id());
+    }
 
-		return points_delta;
-	}
+    return points_delta;
+  }
 };
 } // namespace tynskills
