@@ -16,6 +16,8 @@ testin' skill trees
 
 Required: `src/graph.hpp`, `src/graph.cpp`, `src/skilltree.hpp`.
 
+### Minimal example
+
 ```cpp
 
 #include "skilltree.hpp"
@@ -52,3 +54,17 @@ int upgrade(Skilltree *skilltree, int id), int direction) {
 }
 
 ```
+
+### Progress modes
+
+There three progress modes applied to leafs and branches:
+
+- `BranchProgressMode::ANY`
+- `BranchProgressMode::MINIMUM`
+- `BranchProgressMode::MAXIMUM`
+
+...
+- `ANY` and `MINIMUM` leaf mode activates leaf when one or more input branches is active. `MAXIMUM` mode requires all input branches to be active.
+- `ANY` branch mode activates branch whenever input leaf is active (even with 0 points). `MINIMUM` mode requires at least one point in input leaf to activate branch. `MAXIMUM` points requires input leaf to be fully upgraded.
+
+
