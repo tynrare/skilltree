@@ -1,7 +1,6 @@
 #pragma once
 #include "graph.hpp"
 #include <algorithm>
-#include <raylib.h>
 #include <string>
 
 using namespace tyngraph;

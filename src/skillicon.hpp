@@ -14,16 +14,16 @@ public:
     this->pos = pos;
     this->leafid = leafid;
   }
-	Skillicon() {
+  Skillicon() {
     this->texture = {};
     this->pos = {};
     this->leafid = -1;
-	}
-	Skillicon(const Skillicon &s) {
+  }
+  Skillicon(const Skillicon &s) {
     this->texture = s.texture;
     this->pos = s.pos;
     this->leafid = s.leafid;
-	}
+  }
 
   int get_id() { return this->leafid; }
 
@@ -31,17 +31,14 @@ public:
     return {origin.x + this->pos.x, origin.y + this->pos.y, 128.0, 128.0};
   }
 
-	Vector2 get_pos() const {
-		return this->pos;
-	}
+  Vector2 get_pos() const { return this->pos; }
 
-	Vector2 get_center(Vector2 origin) const {
-		const Rectangle rect = this->get_rect(origin);
-		const Vector2 v = { rect.x + rect.width / 2 ,
-		 	rect.y + rect.height / 2 };
+  Vector2 get_center(Vector2 origin) const {
+    const Rectangle rect = this->get_rect(origin);
+    const Vector2 v = {rect.x + rect.width / 2, rect.y + rect.height / 2};
 
-		return v;
-	}
+    return v;
+  }
 
   void draw(Leaf *leaf, Rectangle dest, bool highlight) const {
     Rectangle source = {0.0, 0.0, (float)this->texture.width,
@@ -52,7 +49,7 @@ public:
     DrawTexturePro(this->texture, source, dest, Vector2Zero(), 0.0, color);
     DrawRectangleLinesEx(dest, 2.0, outline_color);
 
-		const int fontsize = 20;
+    const int fontsize = 20;
     if (leaf->is_active()) {
       DrawText(TextFormat("%d/%d", leaf->get_points(), leaf->get_maxpoints()),
                dest.x + 8, dest.y + 8, fontsize, WHITE);
@@ -60,7 +57,8 @@ public:
       DrawText("---", dest.x + 8, dest.y + 8, fontsize, WHITE);
     }
 
-		DrawText(leaf->get_name().c_str(), dest.x + 8, dest.y + dest.width - 8 - fontsize, fontsize, WHITE);
+    DrawText(leaf->get_name().c_str(), dest.x + 8,
+             dest.y + dest.width - 8 - fontsize, fontsize, WHITE);
   }
 };
 } // namespace tynskills
