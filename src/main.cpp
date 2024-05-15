@@ -174,7 +174,7 @@ int main() {
   // Initialization
   //--------------------------------------------------------------------------------------
   InitWindow(screenWidth, screenHeight, "tynroar skilltree");
-
+  SetWindowState(FLAG_WINDOW_RESIZABLE);
   init();
 
 #if defined(PLATFORM_WEB)
